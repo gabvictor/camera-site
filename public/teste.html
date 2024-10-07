@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atualizar Imagem Dinamicamente</title>
+</head>
+<body>
+    <h1>Imagem da Câmera</h1>
+    <ul id="imageList"></ul>
+    <div id="status"></div>
+
+    <script>
+        async function obterUltimoCodigo() {
+            const response = await fetch('http://192.168.100.43:3001/ultimo-codigo');
+            const data = await response.json();
+            return data.ultimoCodigo;
+        }
+
+        async function verificarImagens() {
+            const imageList = document.getElementById('imageList');
+            const statusDiv = document.getElementById('status');
+
+            // Obtém o último código salvo
+            let lastSavedCode = await obterUltimoCodigo();
+
+            // Ajusta para iniciar a verificação do último código salvo + 1
+            let startCode = lastSavedCode + 1;
+
+            // Loop para verificar os códigos de startCode até 200000
+            for (let code = startCode; code <= 200000; code++) {
+                const paddedCode = String(code).padStart(6, '0');
+                const imageUrl = `http://192.168.100.43:3001/proxy/camera?code=${paddedCode}&rand=${Math.random()}`;
+
+                try {
+                    const response = await fetch(imageUrl);
+
+                    // Verifica se a resposta foi bem-sucedida
+                    if (!response.ok) {
+                        console.log(`Código: ${paddedCode} - Imagem não encontrada.`);
+                        continue; // Pula para o próximo código
+                    }
+
+                    const blob = await response.blob();
+                    const imgSizeKB = blob.size / 1024; // Tamanho em KB
+
+                    if (imgSizeKB > 21) { // Verifica se a imagem é maior que 30KB
+                        const listItem = document.createElement('li');
+                        listItem.innerText = `Código: ${paddedCode} - Tamanho: ${imgSizeKB.toFixed(2)} kB`;
+                        imageList.appendChild(listItem);
+
+                        // Salva o código encontrado no backend
+                        const saveResponse = await fetch('http://192.168.100.43:3001/save-code', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ code: paddedCode })
+                        });
+
+                        if (saveResponse.ok) {
+                            console.log(`Código ${paddedCode} salvo com sucesso.`);
+                        } else {
+                            console.error(`Erro ao salvar o código ${paddedCode}.`);
+                        }
+                    } else {
+                        console.log(`Código: ${paddedCode} - Imagem menor que 30 kB.`);
+                    }
+                } catch (error) {
+                    console.error(`Erro ao verificar o código ${paddedCode}:`, error);
+                }
+            }
+
+            statusDiv.innerText = 'Verificação concluída.';
+        }
+
+        // Inicia a verificação
+        verificarImagens();
+    </script>
+</body>
+</html>

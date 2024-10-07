@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualização da Câmera</title>
+</head>
+<body>
+    <h1>Imagem da Câmera</h1>
+    <img id="cameraImage" src="" alt="Câmera" style="width: auto; height: auto; display: none;"> <!-- Inicialmente oculta -->
+    <div id="status"></div>
+
+    <script>
+        let codigos = [];
+        let codigoIndex = 0;
+        let atualizandoImagem = false;
+
+        // Função para aguardar um tempo
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Função para obter o código da câmera da URL
+        function obterCodigoDaURL() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('codigo');
+        }
+
+        // Função para atualizar a imagem da câmera com base no código atual
+        async function atualizarImagem() {
+            if (atualizandoImagem) return;
+            atualizandoImagem = true;
+
+            const img = document.getElementById('cameraImage');
+            const statusDiv = document.getElementById('status');
+            if (codigos.length > 0) {
+                const codigoAtual = codigos[codigoIndex];
+                const imageUrl = `http://localhost:3001/proxy/camera?code=${codigoAtual}&rand=` + Math.random();
+
+                try {
+                    const response = await fetch(imageUrl);
+
+                    if (!response.ok) {
+                        statusDiv.innerText = `Código: ${codigoAtual} - Imagem não encontrada.`;
+                        img.style.display = 'none';
+                        await delay(1000);
+                        codigoIndex = (codigoIndex + 1) % codigos.length;
+                        atualizandoImagem = false;
+                        atualizarImagem();
+                        return;
+                    }
+
+                    const blob = await response.blob();
+                    const imgSizeKB = blob.size / 1024;
+
+                    if (imgSizeKB > 20.8) {
+                        img.src = imageUrl;
+                        img.style.display = 'block';
+                        statusDiv.innerText = `Código: ${codigoAtual} - Tamanho: ${imgSizeKB.toFixed(2)} kB`;
+                    } else {
+                        statusDiv.innerText = `Código: ${codigoAtual} - Imagem menor que 20.8 kB.`;
+                        img.style.display = 'none';
+                        await delay(1000);
+                        codigoIndex = (codigoIndex + 1) % codigos.length;
+                        atualizandoImagem = false;
+                        atualizarImagem();
+                        return;
+                    }
+                } catch (error) {
+                    console.error(`Erro ao verificar a imagem para o código ${codigoAtual}:`, error);
+                    img.style.display = 'none';
+                    statusDiv.innerText = '';
+                    await delay(500);
+                    codigoIndex = (codigoIndex + 1) % codigos.length;
+                    atualizandoImagem = false;
+                    atualizarImagem();
+                    return;
+                }
+
+                atualizandoImagem = false;
+            }
+        }
+
+        // Função para buscar os códigos e iniciar a atualização
+        function buscarCodigos() {
+            const codigoURL = obterCodigoDaURL();
+            codigos = [codigoURL]; // Usamos apenas o código passado na URL
+
+            if (codigos.length > 0) {
+                atualizarImagem();
+            }
+        }
+
+        document.getElementById('nextButton').addEventListener('click', async function() {
+            if (codigos.length > 0) {
+                codigoIndex = (codigoIndex + 1) % codigos.length;
+                await delay(1000);
+                atualizarImagem();
+            }
+        });
+
+        document.getElementById('prevButton').addEventListener('click', async function() {
+            if (codigos.length > 0) {
+                codigoIndex = (codigoIndex - 1 + codigos.length) % codigos.length;
+                await delay(1000);
+                atualizarImagem();
+            }
+        });
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'ArrowRight') {
+                document.getElementById('nextButton').click();
+            } else if (event.key === 'ArrowLeft') {
+                document.getElementById('prevButton').click();
+            }
+        });
+
+        setInterval(atualizarImagem, 390);
+
+        // Inicia buscando os códigos assim que a página carrega
+        buscarCodigos();
+    </script>
+</body>
+</html>
