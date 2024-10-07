@@ -97,7 +97,7 @@
             const statusDiv = document.getElementById('status');
             if (codigos.length > 0) {
                 const codigoAtual = codigos[codigoIndex];
-                const imageUrl = `/proxy/camera?code=${codigoAtual}&rand=` + Math.random();
+                const imageUrl = `http://cameras.riobranco.ac.gov.br/api/camera?code=001345=${codigoAtual}&rand=` + Math.random();
 
                 try {
                     const response = await fetch(imageUrl);
