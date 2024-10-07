@@ -80,7 +80,7 @@
         let codigos = [];
         let codigoIndex = 0;
         let atualizandoImagem = false;
-        const intervaloAtualizacao = 250; // Intervalo de atualização em milissegundos
+        const intervaloAtualizacao = 0; // Intervalo de atualização em milissegundos
 
         // Função para obter o código da câmera da URL
         function obterCodigoDaURL() {
@@ -182,11 +182,11 @@
 
         // Exemplo: coordenadas das câmeras (Rio Branco - Exemplo)
         const coordenadasCameras = {
-            "001025": { lat: -9.9726946, lng: -67.8102893 },  // Praça Revolução
-            "001030": { lat: -9.9726946, lng: -67.8102893 },  // Praça Revolução
-            "001022": { lat: -9.9724397, lng: -67.8097596 },  // Praça Revolução 
-            "001023": { lat: -9.9724397, lng: -67.8097596 },  // Praça Revolução 
-            "001305": { lat: -9.9724397, lng: -67.8097596 },  // Praça Revolução 
+            "001025": { lat: -9.972694, lng: -67.810289 },  // Praça Revolução
+            "001030": { lat: -9.972694, lng: -67.810289 },  // Praça Revolução
+            "001022": { lat: -9.972439, lng: -67.809759 },  // Praça Revolução 
+            "001023": { lat: -9.972439, lng: -67.809759 },  // Praça Revolução 
+            "001305": { lat: -9.972439, lng: -67.809759 },  // Praça Revolução 
             "001024": { lat: -9.973169, lng: -67.809990 },  // Praça Revolução   
             "001026": { lat: -9.974061, lng: -67.810247 },  // Praça Revolução   
             "001270": { lat: -9.974061, lng: -67.810247 },  // Praça Revolução  
@@ -195,7 +195,7 @@
             "001013": { lat: -9.973403, lng: -67.809532 },  // Praça Revolução    
             "001347": { lat: -9.973615, lng: -67.809240 },  // Praça Revolução   
             "001348": { lat: -9.973615, lng: -67.809240 },  // Praça Revolução  
-            "001348": { lat: -9.973615, lng: -67.809240 },  // Praça Revolução 
+            "001349": { lat: -9.973615, lng: -67.809240 },  // Praça Revolução 
             "001417": { lat: -9.972809, lng: -67.809908 },  // Praça Revolução 
 
             "001006": { lat: -9.976702, lng: -67.808785 },  // Praça Palácio Rio Branco 
@@ -214,11 +214,14 @@
 
             "001058": { lat: -9.973119, lng: -67.805343 },  // aquiri
             "001059": { lat: -9.973119, lng: -67.805343 },  // aquiri
+            "001060": { lat: -9.973119, lng: -67.805343 },  // aquiri
+            "001061": { lat: -9.973119, lng: -67.805343 },  // aquiri
             
             "001282": { lat: -10.011248, lng: -67.798818 },  // rotatoria 364 
             "001409": { lat: -10.011204, lng: -67.798879 },  // rotatoria 364 
 
             "001289": { lat: -10.007256, lng: -67.802169 },  // Via Chico mendes 
+            "001290": { lat: -10.007256, lng: -67.802169 },  // Via Chico mendes 
             
             "001304": { lat: -10.004677, lng: -67.789298 },  // ponte sobre o Igarapé da Judia 
 
@@ -245,7 +248,8 @@
             "001118": { lat: -9.969992, lng: -67.819389 },  // Av. ceara
             "001119": { lat: -9.969153, lng: -67.818056 },  // Av. ceara
             "001121": { lat: -9.969258, lng: -67.815721 },  // Av. ceara
-            "001099 ": { lat: -9.971360, lng: -67.808699 },  // Av. ceara
+            "001099": { lat: -9.971360, lng: -67.808699 },  // Av. ceara
+            "001378": { lat: -9.967738, lng: -67.831000 },  // Av. ceara
 
             "001345": { lat: -9.947431, lng: -67.825076 },  // Rotatoria Horto 
             "001346": { lat: -9.947431, lng: -67.825076 },  // Rotatoria Horto 
@@ -284,18 +288,29 @@
             "001206": { lat: -9.972757, lng: -67.804894 },  // terminal
             "001249": { lat: -9.972757, lng: -67.804894 },  // terminal
             "001249": { lat: -9.972757, lng: -67.804894 },  // terminal
-            
+
             "001374": { lat: -9.977339, lng: -67.849148 },  // Rotatoria Havan
             "001375": { lat: -9.977339, lng: -67.849148 },  // Rotatoria Havan
             
             "001379": { lat: -9.978587, lng: -67.804893 },  // 3 ponte 
             "001380": { lat: -9.978587, lng: -67.804893 },  // 3 ponte 
-            "001049": { lat: -9.978510, lng: -67.804558 },  // 3 ponte
+            "001047": { lat: -9.978510, lng: -67.804558 },  // 3 ponte
+            "001048": { lat: -9.978510, lng: -67.804558 },  // 3 ponte
+            "001049": { lat: -9.977450, lng: -67.805672 },  // 3 ponte
+            "001051": { lat: -9.977450, lng: -67.805672 },  // 3 ponte
+            "001066": { lat: -9.978508, lng: -67.804675 },  // 3 ponte
+            "001046": { lat: -9.978508, lng: -67.804675 },  // 3 ponte
             
             "001412": { lat: -9.982117, lng: -67.824814 },  // Av. Sobral 
             "001411": { lat: -9.982117, lng: -67.824814 },  // Av. Sobral
 
-            "001411": { lat:-9.9764373, lng: -67.8079631 },  // Mercado Velho
+            " ": { lat:-9.9764373, lng: -67.8079631 },  // Mercado Velho
+
+            "001322": { lat: -9.959538, lng: -67.8574974 },  // lago do amor
+            "001323": { lat: -9.959538, lng: -67.8574974 },  // lago do amor
+            "001324": { lat: -9.959538, lng: -67.8574974 },  // lago do amor
+            "001322": { lat: -9.959538, lng: -67.8574974 },  // lago do amor
+            "001415": { lat: -9.960031, lng: -67.8572291 },  // lago do amor
 
         };
 
