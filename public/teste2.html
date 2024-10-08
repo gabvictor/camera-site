@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualização da Câmera</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        h1, h2 {
+            color: #4CAF50;
+            margin-bottom: 20px;
+        }
+        #cameraImage {
+            max-width: 720px;
+            height: auto;
+            border: 2px solid #4CAF50;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        #status {
+            margin-bottom: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+        #map {
+            height: 300px;
+            width: 100%;
+            max-width: 720px;
+            margin-top: 20px;
+            border-radius: 8px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        button:focus {
+            outline: none;
+        }
+        @media (max-width: 768px) {
+            #cameraImage {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Imagem da Câmera</h1>
+    <img id="cameraImage" src="" alt="Câmera">
+    <div id="status">Aguardando...</div>
+    <h2>Localização da Câmera</h2>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+    <script>
+        let codigos = [];
+        let codigoIndex = 0;
+        let atualizandoImagem = false;
+        const intervaloAtualizacao = 5000; // Atualiza a imagem a cada 5 segundos
+
+        function obterCodigoDaURL() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('codigo');
+        }
+
+        async function atualizarImagem() {
+            if (atualizandoImagem) return;
+            atualizandoImagem = true;
+
+            const img = document.getElementById('cameraImage');
+            const statusDiv = document.getElementById('status');
+            if (codigos.length > 0) {
+                const codigoAtual = codigos[codigoIndex];
+                const imageUrl = `/proxy/camera?code=${codigoAtual}&rand=` + Math.random();
+
+                try {
+                    const response = await fetch(imageUrl);
+
+                    if (!response.ok) {
+                        statusDiv.innerText = `Código: ${codigoAtual} - Imagem não encontrada.`;
+                        img.style.display = 'none';
+                        await delay(500);
+                        codigoIndex = (codigoIndex + 1) % codigos.length;
+                        atualizarImagem();
+                        return;
+                    }
+
+                    const blob = await response.blob();
+                    const imgSizeKB = blob.size / 1024;
+
+                    img.src = imageUrl;
+                    img.style.display = 'block';
+                    statusDiv.innerText = `Código: ${codigoAtual} - Tamanho: ${imgSizeKB.toFixed(2)} kB`;
+
+                } catch (error) {
+                    console.error(`Erro ao verificar a imagem para o código ${codigoAtual}:`, error);
+                    img.style.display = 'none';
+                    statusDiv.innerText = 'Erro ao carregar a imagem.';
+                    await delay(500);
+                    codigoIndex = (codigoIndex + 1) % codigos.length;
+                    atualizarImagem();
+                    return;
+                }
+
+                atualizandoImagem = false;
+                setTimeout(atualizarImagem, intervaloAtualizacao);
+            }
+        }
+
+        function buscarCodigos() {
+            const codigoURL = obterCodigoDaURL();
+            codigos = [codigoURL];
+
+            if (codigos.length > 0) {
+                atualizarImagem();
+            }
+        }
+
+        function inicializarMapa(coordenadasCameras) {
+            const map = L.map('map').setView([-9.97499, -67.8243], 12);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            const markers = L.markerClusterGroup();
+
+            Object.keys(coordenadasCameras).forEach(codigo => {
+                const coordenadas = coordenadasCameras[codigo];
+                const marker = L.marker([coordenadas.lat, coordenadas.lng]).bindPopup(`
+                    <strong>Câmera ${codigo}</strong><br>
+                    <button onclick="irParaCamera('${codigo}')">Ir para a Câmera</button>
+                `);
+                
+                markers.addLayer(marker);
+            });
+
+            map.addLayer(markers);
+        }
+
+        function irParaCamera(codigo) {
+            const newUrl = `?codigo=${codigo}`;
+            window.history.pushState({ codigo }, '', newUrl);
+            buscarCodigos();
+        }
+
+        const coordenadasCameras = {
+            // Coordenadas únicas e relevantes
+            "001025": { lat: -9.9726946, lng: -67.8102893 }, // Exemplo
+            // Adicione outros códigos e coordenadas sem duplicatas
+        };
+
+        document.addEventListener('DOMContentLoaded', buscarCodigos);
+    </script>
+</body>
+</html>

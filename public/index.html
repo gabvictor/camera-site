@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualização da Câmera</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" /> <!-- Estilos do Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        h1, h2 {
+            color: #4CAF50;
+            margin-bottom: 20px;
+        }
+
+        #cameraImage {
+            max-width: 720px;
+            height: auto;
+            border: 2px solid #4CAF50;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none; /* Mantém oculto até a exibição */
+        }
+
+        #status {
+            margin-bottom: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        #map {
+            height: 300px;
+            width: 100%;
+            max-width: 720px;
+            margin-top: 20px;
+            border-radius: 8px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        button {
+        background-color: #4CAF50;
+         color: white;
+        padding: 10px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        button:focus {
+            outline: none;
+        }
+
+        @media (max-width: 768px) {
+            #cameraImage {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Imagem da Câmera</h1>
+    <img id="cameraImage" src="" alt="Câmera"> <!-- Inicialmente oculta -->
+    <div id="status">Aguardando...</div>
+
+    <h2>Localização da Câmera</h2>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script> <!-- Biblioteca Leaflet para mapas -->
+    <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script> <!-- Biblioteca MarkerCluster -->
+
+    <script>
+        let codigos = [];
+        let codigoIndex = 0;
+        let atualizandoImagem = false;
+        const intervaloAtualizacao = 1; // Intervalo de atualização em milissegundos
+
+        // Função para obter o código da câmera da URL
+        function obterCodigoDaURL() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('codigo');
+        }
+
+        // Função para atualizar a imagem da câmera com base no código atual
+        async function atualizarImagem() {
+            if (atualizandoImagem) return;
+            atualizandoImagem = true;
+
+            const img = document.getElementById('cameraImage');
+            const statusDiv = document.getElementById('status');
+            if (codigos.length > 0) {
+                const codigoAtual = codigos[codigoIndex];
+                const imageUrl = `/proxy/camera?code=${codigoAtual}&rand=` + Math.random();
+
+                try {
+                    const response = await fetch(imageUrl);
+
+                    if (!response.ok) {
+                        statusDiv.innerText = `Código: ${codigoAtual} - Imagem não encontrada.`;
+                        img.style.display = 'none';
+                        await delay(500);
+                        codigoIndex = (codigoIndex + 1) % codigos.length;
+                        atualizarImagem();
+                        return;
+                    }
+
+                    const blob = await response.blob();
+                    const imgSizeKB = blob.size / 1024;
+
+                    img.src = imageUrl;
+                    img.style.display = 'block';
+                    statusDiv.innerText = `Código: ${codigoAtual} - Tamanho: ${imgSizeKB.toFixed(2)} kB`;
+
+                } catch (error) {
+                    console.error(`Erro ao verificar a imagem para o código ${codigoAtual}:`, error);
+                    img.style.display = 'none';
+                    statusDiv.innerText = '';
+                    await delay(500);
+                    codigoIndex = (codigoIndex + 1) % codigos.length;
+                    atualizarImagem();
+                    return;
+                }
+
+                atualizandoImagem = false;
+
+                // Atualiza a imagem após o intervalo definido
+                setTimeout(atualizarImagem, intervaloAtualizacao);
+            }
+        }
+
+        // Função para buscar os códigos e iniciar a atualização
+        function buscarCodigos() {
+            const codigoURL = obterCodigoDaURL();
+            codigos = [codigoURL]; // Usamos apenas o código passado na URL
+
+            if (codigos.length > 0) {
+                atualizarImagem();
+            }
+        }
+
+        // Função para inicializar o mapa e mostrar os locais das câmeras
+        function inicializarMapa(coordenadasCameras) {
+            const map = L.map('map').setView([-9.97499, -67.8243], 12); // Coordenadas e nível de zoom para Rio Branco
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            // Crie um grupo de marcadores
+            const markers = L.markerClusterGroup();
+
+            // Adiciona um marcador para cada câmera
+            Object.keys(coordenadasCameras).forEach(codigo => {
+                const coordenadas = coordenadasCameras[codigo];
+                const marker = L.marker([coordenadas.lat, coordenadas.lng]).bindPopup(`
+                    <strong>Câmera ${codigo}</strong><br>
+                    <button onclick="irParaCamera('${codigo}')">Ir para a Câmera</button>
+                `); // Exibe botão no popup
+                
+                // Adiciona o marcador ao grupo
+                markers.addLayer(marker);
+            });
+
+            // Adiciona o grupo de marcadores ao mapa
+            map.addLayer(markers);
+        }
+
+        // Função para ir para a câmera selecionada
+        function irParaCamera(codigo) {
+            // Atualiza a URL sem recarregar a página
+            const newUrl = `?codigo=${codigo}`;
+            window.history.pushState({ codigo }, '', newUrl);
+            buscarCodigos(); // Atualiza a câmera
+        }
+
+        // Exemplo: coordenadas das câmeras (Rio Branco - Exemplo)
+        const coordenadasCameras = {
+            "001025": { lat: -9.972694, lng: -67.810289 },  // Praça Revolução
+            "001030": { lat: -9.972694, lng: -67.810289 },  // Praça Revolução
+            "001022": { lat: -9.972439, lng: -67.809759 },  // Praça Revolução 
+            "001023": { lat: -9.972439, lng: -67.809759 },  // Praça Revolução 
+            "001305": { lat: -9.972439, lng: -67.809759 },  // Praça Revolução 
+            "001024": { lat: -9.973169, lng: -67.809990 },  // Praça Revolução   
+            "001026": { lat: -9.974061, lng: -67.810247 },  // Praça Revolução   
+            "001270": { lat: -9.974061, lng: -67.810247 },  // Praça Revolução  
+            "001029": { lat: -9.973103, lng: -67.809794 },  // Praça Revolução    
+            "001012": { lat: -9.973529, lng: -67.809493 },  // Praça Revolução 
+            "001013": { lat: -9.973403, lng: -67.809532 },  // Praça Revolução    
+            "001347": { lat: -9.973615, lng: -67.809240 },  // Praça Revolução   
+            "001348": { lat: -9.973615, lng: -67.809240 },  // Praça Revolução  
+            "001349": { lat: -9.973615, lng: -67.809240 },  // Praça Revolução 
+            "001417": { lat: -9.972809, lng: -67.809908 },  // Praça Revolução 
+
+            "001006": { lat: -9.976702, lng: -67.808785 },  // Praça Palácio Rio Branco 
+            "001016": { lat: -9.975660, lng: -67.809492 },  // Praça Palácio Rio Branco  
+            "001017": { lat: -9.975660, lng: -67.809492 },  // Praça Palácio Rio Branco   
+            "001265": { lat: -9.975743, lng: -67.810197 },  // Praça Palácio Rio Branco  
+            "001266": { lat: -9.975743, lng: -67.810197 },  // Praça Palácio Rio Branco 
+            "001042": { lat: -9.975288, lng: -67.810546 },  // Praça Palácio Rio Branco 
+            "001123": { lat: -9.975450, lng: -67.809784 },  // Praça Palácio Rio Branco 
+
+            "001007": { lat: -9.973927, lng: -67.805881 },  // Calçaldão 
+            "001008": { lat: -9.973927, lng: -67.805881 },  // Calçaldão 
+            "001014": { lat: -9.973927, lng: -67.805881 },  // Calçaldão 
+            "001009": { lat: -9.975256, lng: -67.805550 },  // Calçaldão 
+            "001010": { lat: -9.975256, lng: -67.805550 },  // Calçaldão
+
+            "001058": { lat: -9.973119, lng: -67.805343 },  // aquiri
+            "001059": { lat: -9.973119, lng: -67.805343 },  // aquiri
+            "001060": { lat: -9.973119, lng: -67.805343 },  // aquiri
+            "001061": { lat: -9.973119, lng: -67.805343 },  // aquiri
+            
+            "001282": { lat: -10.011248, lng: -67.798818 },  // rotatoria 364 
+            "001409": { lat: -10.011204, lng: -67.798879 },  // rotatoria 364 
+
+            "001289": { lat: -10.007256, lng: -67.802169 },  // Via Chico mendes 
+            "001290": { lat: -10.007256, lng: -67.802169 },  // Via Chico mendes 
+            
+            "001304": { lat: -10.004677, lng: -67.789298 },  // ponte sobre o Igarapé da Judia 
+
+            "001316": { lat: -9.961213, lng: -67.849110 },  // elevado 
+            "001317": { lat: -9.961213, lng: -67.849110 },  // elevado 
+
+            "001320": { lat: -9.963139, lng: -67.843522 },  // rotatoria ABB 
+            "001321": { lat: -9.963139, lng: -67.843522 },  // rotatoria ABB
+            "001302": { lat: -9.962875, lng: -67.843125 },  // rotatoria ABB  
+
+            "001319": { lat: -9.986665, lng: -67.845167 },  // rotatoria Shopping
+
+            "001340": { lat: -9.969164, lng: -67.812061 },  // maternidade 
+            "001341": { lat: -9.969164, lng: -67.812061 },  // maternidade 
+            "001097": { lat: -9.968810, lng: -67.812214 },  // maternidade 
+            "001098": { lat: -9.969035, lng: -67.810435 },  // maternidade 
+
+            "001342": { lat: -9.970891, lng: -67.812521 },  // Av. ceara 
+            "001343": { lat: -9.970778, lng: -67.812283 },  // Av. ceara
+            "001406": { lat: -9.967738, lng: -67.831000 },  // Av. ceara
+            "001377": { lat: -9.967738, lng: -67.831000 },  // Av. ceara
+            "001116": { lat: -9.969992, lng: -67.819389 },  // Av. ceara  
+            "001117": { lat: -9.969451, lng: -67.818997 },  // Av. ceara 
+            "001118": { lat: -9.969992, lng: -67.819389 },  // Av. ceara
+            "001119": { lat: -9.969153, lng: -67.818056 },  // Av. ceara
+            "001121": { lat: -9.969258, lng: -67.815721 },  // Av. ceara
+            "001099": { lat: -9.971360, lng: -67.808699 },  // Av. ceara
+            "001378": { lat: -9.967738, lng: -67.831000 },  // Av. ceara
+
+            "001345": { lat: -9.947431, lng: -67.825076 },  // Rotatoria Horto 
+            "001346": { lat: -9.947431, lng: -67.825076 },  // Rotatoria Horto 
+            "001160": { lat: -9.947267, lng: -67.825523 },  // Horto
+            "001161": { lat: -9.947267, lng: -67.825523 },  // Horto
+            "001162": { lat: -9.947267, lng: -67.825523 },  // Horto
+            "001163": { lat: -9.947267, lng: -67.825523 },  // Horto
+            "001164": { lat: -9.947267, lng: -67.825523 },  // Horto
+            "001166": { lat: -9.947267, lng: -67.825523 },  // Horto
+            "001169": { lat: -9.947267, lng: -67.825523 },  // Horto
+            "001170": { lat: -9.947267, lng: -67.825523 },  // Horto
+            "001177": { lat: -9.947267, lng: -67.825523 },  // Horto
+            "001219": { lat: -9.947267, lng: -67.825523 },  // Horto
+            "001230": { lat: -9.947267, lng: -67.825523 },  // Horto
+            "001231": { lat: -9.947267, lng: -67.825523 },  // Horto
+            "001232": { lat: -9.947267, lng: -67.825523 },  // Horto
+            "001233": { lat: -9.947267, lng: -67.825523 },  // Horto
+            "001234": { lat: -9.947267, lng: -67.825523 },  // Horto
+            "001235": { lat: -9.947267, lng: -67.825523 },  // Horto
+            "001236": { lat: -9.947267, lng: -67.825523 },  // Horto
+
+            "001353": { lat: -9.973615, lng: -67.809240 },  // Hotel "papouco"  
+            "001354": { lat: -9.973615, lng: -67.809240 },  // Hotel "papouco" 
+            "001355": { lat: -9.973615, lng: -67.809240 },  // Hotel "papouco" 
+
+            "001356": { lat: -9.971531, lng: -67.810997 },  // "centro" 
+            "001357": { lat: -9.971531, lng: -67.810997 },  // "centro"
+
+            "001360": { lat: -9.972889, lng: -67.807051 },  // oca 
+            "001361": { lat: -9.972889, lng: -67.807051 },  // oca 
+
+            "001364": { lat: -9.974493, lng: -67.8071368 },  // calçaldão
+            "001365": { lat: -9.974493, lng: -67.8071368 },  // calçaldão
+            "001366": { lat: -9.974493, lng: -67.8071368 },  // calçaldão
+
+            "001371": { lat: -9.971803, lng: -67.804984 },  // "terminal" 
+            "001372": { lat: -9.971784, lng: -67.806494 },  // "terminal" 
+            "001373": { lat: -9.971784, lng: -67.806494 },  // "terminal" 
+
+            "001069": { lat: -9.972757, lng: -67.804894 },  // terminal
+            "001071": { lat: -9.972757, lng: -67.804894 },  // terminal
+            "001076": { lat: -9.972757, lng: -67.804894 },  // terminal
+            "001077": { lat: -9.972757, lng: -67.804894 },  // terminal
+            "001078": { lat: -9.972757, lng: -67.804894 },  // terminal
+            "001079": { lat: -9.972757, lng: -67.804894 },  // terminal
+            "001080": { lat: -9.972757, lng: -67.804894 },  // terminal
+            "001081": { lat: -9.972757, lng: -67.804894 },  // terminal
+            "001082": { lat: -9.972757, lng: -67.804894 },  // terminal
+            "001084": { lat: -9.972757, lng: -67.804894 },  // terminal
+            "001085": { lat: -9.972757, lng: -67.804894 },  // terminal
+            "001174": { lat: -9.972757, lng: -67.804894 },  // terminal
+            "001206": { lat: -9.972757, lng: -67.804894 },  // terminal
+            "001249": { lat: -9.972757, lng: -67.804894 },  // terminal
+            "001263": { lat: -9.972757, lng: -67.804894 },  // terminal
+
+            "001374": { lat: -9.977339, lng: -67.849148 },  // Rotatoria Havan
+            "001375": { lat: -9.977339, lng: -67.849148 },  // Rotatoria Havan
+            
+            "001379": { lat: -9.978587, lng: -67.804893 },  // 3 ponte 
+            "001380": { lat: -9.978587, lng: -67.804893 },  // 3 ponte 
+            "001047": { lat: -9.978510, lng: -67.804558 },  // 3 ponte
+            "001048": { lat: -9.978510, lng: -67.804558 },  // 3 ponte
+            "001049": { lat: -9.977450, lng: -67.805672 },  // 3 ponte
+            "001051": { lat: -9.977450, lng: -67.805672 },  // 3 ponte
+            "001066": { lat: -9.978508, lng: -67.804675 },  // 3 ponte
+            "001046": { lat: -9.978508, lng: -67.804675 },  // 3 ponte
+            
+            "001412": { lat: -9.982117, lng: -67.824814 },  // Av. Sobral 
+            "001411": { lat: -9.982117, lng: -67.824814 },  // Av. Sobral
+
+            " ": { lat:-9.9764373, lng: -67.8079631 },  // Mercado Velho
+
+            "001322": { lat: -9.959538, lng: -67.8574974 },  // lago do amor
+            "001323": { lat: -9.959538, lng: -67.8574974 },  // lago do amor
+            "001324": { lat: -9.959538, lng: -67.8574974 },  // lago do amor
+            "001322": { lat: -9.959538, lng: -67.8574974 },  // lago do amor
+            "001415": { lat: -9.960031, lng: -67.8572291 },  // lago do amor
+
+        };
+
+        // Inicia o mapa e busca os códigos ao carregar a página
+        document.addEventListener('DOMContentLoaded', () => {
+            buscarCodigos();
+            inicializarMapa(coordenadasCameras);
+        });
+
+        // Função para esperar um determinado tempo (em milissegundos)
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+    </script>
+</body>
+</html>
